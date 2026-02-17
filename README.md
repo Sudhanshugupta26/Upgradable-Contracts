@@ -1,66 +1,114 @@
-## Foundry
+# Upgradable Box (UUPS) with Foundry
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A compact Foundry project that demonstrates the UUPS proxy upgrade pattern using OpenZeppelin v5 contracts.
 
-Foundry consists of:
+## What This Project Shows
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- Deploying `BoxV1` behind an `ERC1967Proxy`
+- Upgrading the proxy implementation to `BoxV2`
+- Preserving proxy storage across upgrades
+- Testing upgrade behavior with Forge
 
-## Documentation
+## Architecture
 
-https://book.getfoundry.sh/
+- `src/BoxV1.sol`
+  - UUPS upgradeable implementation (version `1`)
+  - Uses `Initializable` + `OwnableUpgradeable`
+- `src/BoxV2.sol`
+  - Upgraded implementation (version `2`)
+  - Adds `setNumber(uint256)`
+- `script/DeployBox.s.sol`
+  - Deploys `BoxV1` and an `ERC1967Proxy`
+- `script/UpgradeBox.s.sol`
+  - Deploys `BoxV2` and upgrades proxy via `upgradeToAndCall`
+- `test/DeployAndUpgradeTest.t.sol`
+  - End-to-end and edge-case tests for deploy + upgrade behavior
 
-## Usage
+## Tech Stack
 
-### Build
+- Foundry (`forge`, `anvil`, `cast`)
+- Solidity `^0.8.30`
+- OpenZeppelin Contracts + Contracts Upgradeable
+- `foundry-devops` for resolving latest deployment artifacts in scripts
 
-```shell
-$ forge build
+## Setup
+
+### 1. Clone and enter project
+
+```bash
+git clone https://github.com/Sudhanshugupta26/Upgradable-Contracts
+cd Upgradable-Contracts
 ```
 
-### Test
+### 2. Install dependencies (submodules)
 
-```shell
-$ forge test
+```bash
+git submodule update --init --recursive
 ```
 
-### Format
+### 3. Build
 
-```shell
-$ forge fmt
+```bash
+forge build
 ```
 
-### Gas Snapshots
+## Run Tests
 
-```shell
-$ forge snapshot
+```bash
+forge test -vvv
 ```
 
-### Anvil
+## Coverage
 
-```shell
-$ anvil
+```bash
+forge coverage
 ```
 
-### Deploy
+Current test suite covers upgrade lifecycle and key UUPS constraints (`proxiableUUID`, proxy-context checks, invalid implementation reverts, initializer behavior).
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+## Scripts
+
+### Deploy proxy with BoxV1
+
+```bash
+forge script script/DeployBox.s.sol:DeployBox --rpc-url <RPC_URL> --private-key <PRIVATE_KEY> --broadcast
 ```
 
-### Cast
+### Upgrade proxy to BoxV2
 
-```shell
-$ cast <subcommand>
+```bash
+forge script script/UpgradeBox.s.sol:UpgradeBox --rpc-url <RPC_URL> --private-key <PRIVATE_KEY> --broadcast
 ```
 
-### Help
+## Upgrade Flow
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+1. Deploy `BoxV1` implementation.
+2. Deploy `ERC1967Proxy` pointing to `BoxV1`.
+3. Call `initialize()` through proxy.
+4. Deploy `BoxV2` implementation.
+5. Call `upgradeToAndCall(newImplementation, "")` through proxy.
+6. Interact with proxy using `BoxV2` ABI.
+
+## Security Notes
+
+This repo is educational/demo oriented.
+
+- `_authorizeUpgrade(...)` is currently open in both versions.
+- For production, restrict upgrades with `onlyOwner` (or stronger governance controls).
+- Ensure initializer calls are performed as part of deployment flow.
+
+## Project Structure
+
+```text
+Upgradable/
+├── src/
+│   ├── BoxV1.sol
+│   └── BoxV2.sol
+├── script/
+│   ├── DeployBox.s.sol
+│   └── UpgradeBox.s.sol
+├── test/
+│   └── DeployAndUpgradeTest.t.sol
+├── foundry.toml
+└── lib/
 ```
